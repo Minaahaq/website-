@@ -1,1 +1,173 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>رشق إنستجرام</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";const firebaseConfig = {
+  apiKey: "AIzaSyDsJXNa6EYenn2f5mfoNQVEDxHhCH-XGAo",
+  authDomain: "alzahady-6e615.firebaseapp.com",
+  databaseURL: "https://alzahady-6e615-default-rtdb.firebaseio.com",
+  projectId: "alzahady-6e615",
+  storageBucket: "alzahady-6e615.firebasestorage.app",
+  messagingSenderId: "377804257010",
+  appId: "1:377804257010:web:9516e9ecbbc8b22ab0c26b",
+  measurementId: "G-4XPCD5L40F"
+};
 
+const app = initializeApp(firebaseConfig);
+const auth = getAuth();
+const provider = new GoogleAuthProvider();
+const db = getDatabase();
+
+const loginDiv = document.getElementById("loginSection");
+const mainDiv = document.getElementById("mainSection");
+const pointsBox = document.getElementById("pointsBox");
+const inviteBox = document.getElementById("inviteBox");
+const nameBox = document.getElementById("userName");
+const idBox = document.getElementById("userId");
+let currentUserId = null;
+
+document.getElementById("googleLogin").addEventListener("click", () => {
+  signInWithPopup(auth, provider).then(async (result) => {
+    const user = result.user;
+    const deviceId = localStorage.getItem("deviceId");
+    const dbRef = ref(db);
+    const snapshot = await get(child(dbRef, `users/${user.uid}`));
+
+    if (!snapshot.exists()) {
+      // أول مرة دخول
+      set(ref(db, `users/${user.uid}`), {
+        name: user.displayName,
+        email: user.email,
+        points: 50,
+        deviceId: deviceId || (Math.random() + '').slice(2)
+      });
+      localStorage.setItem("deviceId", (Math.random() + '').slice(2));
+    } else {
+      // مستخدم مسجل سابقًا - تحقق من الجهاز
+      const savedDeviceId = snapshot.val().deviceId;
+      if (savedDeviceId && savedDeviceId !== deviceId) {
+        Swal.fire("🚫 غير مسموح", "هذا الحساب تم تسجيل دخوله من جهاز آخر.", "error");
+        return;
+      }
+    }
+    currentUserId = user.uid;
+    loadUserDashboard(user.uid);
+  });
+});
+
+function loadUserDashboard(uid) {
+  get(ref(db, `users/${uid}`)).then((snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      document.getElementById("points").textContent = data.points;
+      nameBox.textContent = `👤 ${data.name}`;
+      idBox.textContent = `🆔 ${uid}`;
+      if (data.points <= 0) inviteBox.classList.remove("hidden");
+      else inviteBox.classList.add("hidden");
+      loginDiv.classList.add("hidden");
+      mainDiv.classList.remove("hidden");
+    }
+  });
+}
+
+window.طلب_الخدمة = function (e) {
+  e.preventDefault();
+  const الخدمة = document.getElementById("service");
+  const التكلفة = parseInt(الخدمة.options[الخدمة.selectedIndex].dataset.cost || 0);
+  const رابط = document.getElementById("postLink").value;
+
+  get(ref(db, `users/${currentUserId}`)).then((snapshot) => {
+    if (snapshot.exists()) {
+      let نقاط = snapshot.val().points;
+      if (نقاط >= التكلفة) {
+        update(ref(db, `users/${currentUserId}`), {
+          points: نقاط - التكلفة
+        });
+        document.getElementById("points").textContent = نقاط - التكلفة;
+        Swal.fire("✅ تم الطلب", `تم خصم ${التكلفة} نقطة`, "success");
+      } else {
+        Swal.fire("❌ رصيد غير كافٍ", "رصيدك لا يكفي لهذه الخدمة.", "error");
+      }
+    }
+  });
+}
+
+window.logout = function () {
+  signOut(auth).then(() => {
+    location.reload();
+  });
+}
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUserId = user.uid;
+    loadUserDashboard(user.uid);
+  }
+});
+
+  </script>
+  <style>
+    body {
+      background: linear-gradient(to top left, #111827, #1f2937);
+    }
+  </style>
+</head><body class="text-white font-sans">
+  <div class="min-h-screen flex items-center justify-center p-4"><!-- تسجيل الدخول -->
+<div id="loginSection" class="w-full max-w-sm bg-gray-800 p-6 rounded-3xl shadow-xl text-center">
+  <h1 class="text-2xl font-bold mb-4">👋 أهلاً بك في موقع رشق</h1>
+  <button id="googleLogin" class="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-xl font-semibold">🔐 تسجيل الدخول بجوجل</button>
+</div>
+
+<!-- الصفحة الرئيسية -->
+<div id="mainSection" class="hidden bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+  <div class="bg-gradient-to-l from-purple-600 to-indigo-600 p-6 text-center">
+    <h1 class="text-2xl font-bold">👋 مرحباً</h1>
+    <p class="text-sm text-gray-200">ابدأ باستخدام نقاطك الآن</p>
+  </div>
+
+  <div class="px-6 py-2">
+    <div id="userName" class="text-lg font-semibold"></div>
+    <div class="text-xs text-gray-400" id="userId"></div>
+  </div>
+
+  <div class="flex justify-center py-4">
+    <div id="pointsBox" class="bg-green-500 text-white px-4 py-2 rounded-full font-bold shadow-md">
+      رصيدك: <span id="points">0</span> نقطة
+    </div>
+  </div>
+
+  <div id="inviteBox" class="hidden px-6 pb-4">
+    <div class="text-center text-yellow-400 font-semibold mb-2">رصيدك انتهى! شارك الرابط لتجميع نقاط:</div>
+    <div class="bg-gray-700 text-white text-xs p-3 rounded-xl text-center break-all">
+      https://example.com/?ref=abc123
+    </div>
+  </div>
+
+  <form onsubmit="طلب_الخدمة(event)" class="px-6 pb-6 space-y-4">
+    <select id="service" class="w-full p-3 rounded-xl bg-gray-800 text-white focus:ring-2 focus:ring-purple-500" required>
+      <option value="">اختر الخدمة</option>
+      <option value="like" data-cost="50">500 لايك (50 نقطة)</option>
+      <option value="view" data-cost="30">500 مشاهدة (30 نقطة)</option>
+      <option value="story" data-cost="20">200 مشاهدة ستوري (20 نقطة)</option>
+    </select>
+
+    <input type="text" id="postLink" placeholder="رابط المنشور" required class="w-full p-3 rounded-xl bg-gray-800 text-white focus:ring-2 focus:ring-purple-500" />
+
+    <button class="w-full bg-purple-600 hover:bg-purple-700 transition text-white py-3 rounded-xl font-semibold">
+      🚀 طلب الخدمة
+    </button>
+  </form>
+
+  <div class="px-6 pb-6">
+    <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 transition py-3 rounded-xl font-semibold">🚪 تسجيل الخروج</button>
+  </div>
+</div>
+
+  </div>
+</body>
+  </html>
